@@ -16,17 +16,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BRICKS_DIALCODE_VERSION', '1.0.0' );
+define( 'BRICKS_DIALCODE_VERSION', '1.0.1' );
 define( 'BRICKS_DIALCODE_FILE', __FILE__ );
 define( 'BRICKS_DIALCODE_URL', plugin_dir_url( __FILE__ ) );
 
 /**
- * Normalizes a comma-separated country list to lowercase ISO2 country codes.
+ * Normalizes one country name/code to a lowercase ISO2 code.
  *
- * @param string|array $countries Country codes.
- * @return array
+ * @param string $country Country name or code.
+ * @return string
  */
-function bricks_dialcode_normalize_countries( $countries ) {
+function bricks_dialcode_normalize_country( $country ) {
 	$aliases = array(
 		'america'              => 'us',
 		'australia'            => 'au',
@@ -43,6 +43,47 @@ function bricks_dialcode_normalize_countries( $countries ) {
 		'usa'                  => 'us',
 	);
 
+	$country = strtolower( preg_replace( '/[^a-z]/i', '', (string) $country ) );
+
+	return isset( $aliases[ $country ] ) ? $aliases[ $country ] : $country;
+}
+
+/**
+ * Parses a Bricks checkbox value.
+ *
+ * @param mixed $value   Saved checkbox value.
+ * @param bool  $default Value to use when the setting is not present.
+ * @return bool
+ */
+function bricks_dialcode_checkbox_enabled( $value, $default = true ) {
+	if ( $value === null ) {
+		return $default;
+	}
+
+	if ( is_bool( $value ) ) {
+		return $value;
+	}
+
+	if ( is_array( $value ) ) {
+		return ! empty( $value );
+	}
+
+	$value = strtolower( trim( (string) $value ) );
+
+	if ( in_array( $value, array( '', '0', 'false', 'no', 'off' ), true ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Normalizes a comma-separated country list to lowercase ISO2 country codes.
+ *
+ * @param string|array $countries Country codes.
+ * @return array
+ */
+function bricks_dialcode_normalize_countries( $countries ) {
 	if ( is_string( $countries ) ) {
 		$countries = explode( ',', $countries );
 	}
@@ -52,11 +93,7 @@ function bricks_dialcode_normalize_countries( $countries ) {
 	}
 
 	$countries = array_map(
-		function( $country ) use ( $aliases ) {
-			$country = strtolower( preg_replace( '/[^a-z]/i', '', (string) $country ) );
-
-			return isset( $aliases[ $country ] ) ? $aliases[ $country ] : $country;
-		},
+		'bricks_dialcode_normalize_country',
 		$countries
 	);
 
@@ -162,12 +199,18 @@ function bricks_dialcode_add_render_attributes( $attributes, $key, $element ) {
 	$favorites       = ! empty( $settings['bricksDialcodeFavorites'] ) ? $settings['bricksDialcodeFavorites'] : apply_filters( 'bricks_dialcode_country_order', array( 'us', 'gb', 'ca', 'au' ) );
 	$favorites       = bricks_dialcode_normalize_countries( $favorites );
 	$initial_country = isset( $settings['bricksDialcodeInitialCountry'] ) ? strtolower( trim( $settings['bricksDialcodeInitialCountry'] ) ) : '';
+	$show_flags      = bricks_dialcode_checkbox_enabled( isset( $settings['bricksDialcodeShowFlags'] ) ? $settings['bricksDialcodeShowFlags'] : null, true );
 
-	if ( $initial_country && $initial_country !== 'auto' && strlen( $initial_country ) !== 2 ) {
-		$initial_country = '';
+	if ( $initial_country && $initial_country !== 'auto' ) {
+		$initial_country = bricks_dialcode_normalize_country( $initial_country );
+
+		if ( strlen( $initial_country ) !== 2 ) {
+			$initial_country = '';
+		}
 	}
 
-	$attributes['_root']['data-bricks-dialcode'] = '1';
+	$attributes['_root']['data-bricks-dialcode']            = '1';
+	$attributes['_root']['data-bricks-dialcode-show-flags'] = $show_flags ? '1' : '0';
 
 	if ( $favorites ) {
 		$attributes['_root']['data-bricks-dialcode-favorites'] = implode( ',', $favorites );
@@ -175,10 +218,6 @@ function bricks_dialcode_add_render_attributes( $attributes, $key, $element ) {
 
 	if ( $initial_country ) {
 		$attributes['_root']['data-bricks-dialcode-initial-country'] = $initial_country;
-	}
-
-	if ( isset( $settings['bricksDialcodeShowFlags'] ) && ! $settings['bricksDialcodeShowFlags'] ) {
-		$attributes['_root']['data-bricks-dialcode-show-flags'] = '0';
 	}
 
 	return $attributes;
