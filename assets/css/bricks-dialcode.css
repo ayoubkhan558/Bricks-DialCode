@@ -1,0 +1,86 @@
+.brxe-form .iti,
+.bricks-form .iti,
+form .iti.bricks-dialcode {
+	width: 100%;
+}
+
+.brxe-form .iti input[type="tel"],
+.bricks-form .iti input[type="tel"],
+form .iti input.bricks-dialcode-phone {
+	width: 100%;
+}
+
+.iti__country-list {
+	z-index: 99999;
+	background: #fff;
+	border-color: #d7dce2;
+	color: #111827;
+	max-height: 260px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+}
+
+.iti__dropdown-content {
+	max-height: 320px;
+	overflow: hidden;
+	overscroll-behavior: contain;
+}
+
+.iti__search-input,
+.iti__country,
+.iti__country-name,
+.iti__dial-code {
+	color: #111827;
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.iti__search-input {
+	background: #fff;
+	border-color: #d7dce2;
+}
+
+.iti__search-input::placeholder {
+	color: #6b7280;
+	opacity: 1;
+}
+
+.iti__dial-code {
+	color: #6b7280;
+	margin-left: 4px;
+}
+
+.iti__country {
+	align-items: center;
+	gap: 8px;
+	min-height: 34px;
+}
+
+.iti__country.iti__highlight,
+.iti__country:hover {
+	background-color: #eef2f7;
+	color: #111827;
+}
+
+.iti__country.bricks-dialcode-favorite + .iti__country:not(.bricks-dialcode-favorite) {
+	border-top: 1px solid #d7dce2;
+}
+
+.iti__selected-country {
+	background: transparent;
+}
+
+.iti__selected-dial-code {
+	color: inherit;
+	margin-left: 6px;
+}
+
+.bricks-dialcode-no-flags .iti__flag,
+.bricks-dialcode-no-flags .iti__globe {
+	display: none;
+}
+
+.bricks-dialcode-no-flags .iti__country {
+	padding-left: 12px;
+}
