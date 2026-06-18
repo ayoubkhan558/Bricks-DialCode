@@ -220,6 +220,9 @@ function bricks_dialcode_add_render_attributes( $attributes, $key, $element ) {
 		$attributes['_root']['data-bricks-dialcode-initial-country'] = $initial_country;
 	}
 
+	$showFlags = ! isset( $settings['bricksDialcodeShowFlags'] ) || $settings['bricksDialcodeShowFlags'];
+	$attributes['_root']['data-bricks-dialcode-show-flags'] = $showFlags ? '1' : '0';
+
 	return $attributes;
 }
 add_filter( 'bricks/element/render_attributes', 'bricks_dialcode_add_render_attributes', 10, 3 );
