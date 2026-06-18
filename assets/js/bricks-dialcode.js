@@ -8,6 +8,12 @@
 		return Array.isArray(value) ? value : [];
 	}
 
+	function camelToKebab(value) {
+		return value.replace(/[A-Z]/g, function (letter) {
+			return '-' + letter.toLowerCase();
+		});
+	}
+
 	function countryList(value) {
 		var aliases = {
 			america: 'us',
@@ -26,7 +32,13 @@
 		};
 
 		if (Array.isArray(value)) {
-			return value;
+			return value
+				.map(function (country) {
+					return countryList(String(country))[0] || '';
+				})
+				.filter(function (country, index, countries) {
+					return country.length === 2 && countries.indexOf(country) === index;
+				});
 		}
 
 		if (typeof value !== 'string') {
@@ -65,11 +77,15 @@
 	}
 
 	function shouldShowFlags(input) {
-		return getFormSetting(input, 'show-flags') !== '0';
+		var setting = getFormSetting(input, 'show-flags');
+
+		return setting !== '0' && setting !== 'false' && setting !== 'no' && setting !== 'off';
 	}
 
 	function getCountry(input, key, fallback) {
-		return input.getAttribute('data-' + key) || getFormSetting(input, 'initial-country') || settings[key] || fallback;
+		var dataValue = input.getAttribute('data-' + camelToKebab(key)) || input.getAttribute('data-' + key);
+
+		return dataValue || getFormSetting(input, 'initial-country') || settings[key] || fallback;
 	}
 
 	function isEligible(input) {
@@ -177,19 +193,31 @@
 
 		var initialCountry = getCountry(input, 'initialCountry', '');
 		var countryOrder = getPreferredCountries(input);
+		var onlyCountries = countryList(settings.onlyCountries);
+		var excludeCountries = countryList(settings.excludeCountries);
+		var showFlags = shouldShowFlags(input);
 
 		var options = {
-			containerClass: shouldShowFlags(input) ? 'bricks-dialcode' : 'bricks-dialcode bricks-dialcode-no-flags',
+			containerClass: showFlags ? 'bricks-dialcode' : 'bricks-dialcode bricks-dialcode-no-flags',
 			separateDialCode: true,
-			showFlags: shouldShowFlags(input),
+			showFlags: showFlags,
 			numberDisplayFormat: 'NATIONAL',
-			countryOrder: countryOrder,
-			onlyCountries: toArray(settings.onlyCountries),
-			excludeCountries: toArray(settings.excludeCountries),
 			loadUtils: function () {
 				return import(settings.utilsScript);
 			}
 		};
+
+		if (countryOrder.length) {
+			options.countryOrder = countryOrder;
+		}
+
+		if (onlyCountries.length) {
+			options.onlyCountries = onlyCountries;
+		}
+
+		if (excludeCountries.length) {
+			options.excludeCountries = excludeCountries;
+		}
 
 		if (initialCountry && initialCountry !== 'auto') {
 			options.initialCountry = initialCountry;
