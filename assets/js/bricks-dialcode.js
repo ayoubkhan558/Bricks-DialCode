@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+
 (function () {
 	'use strict';
 
@@ -82,10 +84,23 @@
 		return setting !== '0' && setting !== 'false' && setting !== 'no' && setting !== 'off';
 	}
 
-	function getCountry(input, key, fallback) {
-		var dataValue = input.getAttribute('data-' + camelToKebab(key)) || input.getAttribute('data-' + key);
+	function getInputSetting(input, key) {
+		return input.getAttribute('data-' + camelToKebab(key)) || input.getAttribute('data-' + key) || '';
+	}
 
-		return dataValue || getFormSetting(input, 'initial-country') || settings[key] || fallback;
+	function getCountry(input, key, fallback) {
+		var dataValue = getInputSetting(input, key);
+		var formValue = getFormSetting(input, 'initial-country');
+
+		if (dataValue) {
+			return dataValue;
+		}
+
+		if (formValue) {
+			return formValue;
+		}
+
+		return settings[key] || fallback;
 	}
 
 	function isEligible(input) {
@@ -95,8 +110,6 @@
 	function syncInputValue(input) {
 		var instance = input.bricksDialCodeInstance;
 		var internationalValue;
-		var countryData;
-		var nationalValue;
 
 		if (!instance || typeof instance.getNumber !== 'function') {
 			return;
@@ -109,10 +122,26 @@
 			return;
 		}
 
-		countryData = instance.getSelectedCountryData ? instance.getSelectedCountryData() : null;
-		nationalValue = input.value.replace(/[^\d+]/g, '');
+		syncInputValueWithDialCode(input, instance);
+	}
 
-		if (countryData && countryData.dialCode && nationalValue && nationalValue.charAt(0) !== '+') {
+	function getSelectedCountryData(instance) {
+		return instance.getSelectedCountryData ? instance.getSelectedCountryData() : null;
+	}
+
+	function canPrefixDialCode(countryData, nationalValue) {
+		if (!countryData || !countryData.dialCode) {
+			return false;
+		}
+
+		return nationalValue && nationalValue.charAt(0) !== '+';
+	}
+
+	function syncInputValueWithDialCode(input, instance) {
+		var countryData = getSelectedCountryData(instance);
+		var nationalValue = input.value.replace(/[^\d+]/g, '');
+
+		if (canPrefixDialCode(countryData, nationalValue)) {
 			input.value = '+' + countryData.dialCode + nationalValue.replace(/[^\d]/g, '');
 		}
 	}
@@ -147,16 +176,28 @@
 		dropdown.dataset.bricksDialcodeWheelReady = '1';
 
 		dropdown.addEventListener('wheel', function (event) {
-			var scrollTarget = dropdown.matches('.iti__country-list') ? dropdown : dropdown.querySelector('.iti__country-list') || dropdown;
-
-			if (!scrollTarget || scrollTarget.scrollHeight <= scrollTarget.clientHeight) {
-				return;
-			}
-
-			scrollTarget.scrollTop += event.deltaY;
-			event.preventDefault();
-			event.stopPropagation();
+			handleDropdownWheel(event, dropdown);
 		}, { passive: false });
+	}
+
+	function getScrollableDropdownTarget(dropdown) {
+		if (dropdown.matches('.iti__country-list')) {
+			return dropdown;
+		}
+
+		return dropdown.querySelector('.iti__country-list') || dropdown;
+	}
+
+	function handleDropdownWheel(event, dropdown) {
+		var scrollTarget = getScrollableDropdownTarget(dropdown);
+
+		if (!scrollTarget || scrollTarget.scrollHeight <= scrollTarget.clientHeight) {
+			return;
+		}
+
+		scrollTarget.scrollTop += event.deltaY;
+		event.preventDefault();
+		event.stopPropagation();
 	}
 
 	function forceFavoriteOrder(input, countries) {
@@ -186,17 +227,47 @@
 		}, 0);
 	}
 
-	function initInput(input) {
-		if (!isEligible(input) || typeof window.intlTelInput !== 'function') {
-			return;
-		}
+	function getInitialCountryLookup() {
+		var fallbackCountry = settings.fallbackCountry || 'us';
 
-		var initialCountry = getCountry(input, 'initialCountry', '');
-		var countryOrder = getPreferredCountries(input);
+		return function () {
+			return fetch('https://ipapi.co/json/')
+				.then(function (response) {
+					return response.json();
+				})
+				.then(function (data) {
+					return data && data.country_code ? data.country_code.toLowerCase() : fallbackCountry;
+				})
+				.catch(function () {
+					return fallbackCountry;
+				});
+		};
+	}
+
+	function applyCountryFilters(options) {
 		var onlyCountries = countryList(settings.onlyCountries);
 		var excludeCountries = countryList(settings.excludeCountries);
-		var showFlags = shouldShowFlags(input);
 
+		if (onlyCountries.length) {
+			options.onlyCountries = onlyCountries;
+		}
+
+		if (excludeCountries.length) {
+			options.excludeCountries = excludeCountries;
+		}
+	}
+
+	function applyInitialCountry(options, initialCountry) {
+		if (initialCountry && initialCountry !== 'auto') {
+			options.initialCountry = initialCountry;
+		} else if (settings.initialCountryLookup === '1') {
+			options.initialCountryLookup = getInitialCountryLookup();
+		}
+	}
+
+	function buildInputOptions(input, countryOrder) {
+		var initialCountry = getCountry(input, 'initialCountry', '');
+		var showFlags = shouldShowFlags(input);
 		var options = {
 			containerClass: showFlags ? 'bricks-dialcode' : 'bricks-dialcode bricks-dialcode-no-flags',
 			separateDialCode: true,
@@ -211,32 +282,19 @@
 			options.countryOrder = countryOrder;
 		}
 
-		if (onlyCountries.length) {
-			options.onlyCountries = onlyCountries;
+		applyCountryFilters(options);
+		applyInitialCountry(options, initialCountry);
+
+		return options;
+	}
+
+	function initInput(input) {
+		if (!isEligible(input) || typeof window.intlTelInput !== 'function') {
+			return;
 		}
 
-		if (excludeCountries.length) {
-			options.excludeCountries = excludeCountries;
-		}
-
-		if (initialCountry && initialCountry !== 'auto') {
-			options.initialCountry = initialCountry;
-		} else if (settings.initialCountryLookup === '1') {
-			options.initialCountryLookup = function () {
-				var fallbackCountry = settings.fallbackCountry || 'us';
-
-				return fetch('https://ipapi.co/json/')
-					.then(function (response) {
-						return response.json();
-					})
-					.then(function (data) {
-						return data && data.country_code ? data.country_code.toLowerCase() : fallbackCountry;
-					})
-					.catch(function () {
-						return fallbackCountry;
-					});
-			};
-		}
+		var countryOrder = getPreferredCountries(input);
+		var options = buildInputOptions(input, countryOrder);
 
 		input.dataset.bricksDialcodeReady = '1';
 		input.bricksDialCodeInstance = window.intlTelInput(input, options);
