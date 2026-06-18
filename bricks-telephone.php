@@ -1,10 +1,10 @@
 <?php
 /**
  * Plugin Name: Bricks DialCode
- * Plugin URI:  https://example.com/bricks-dialcode
+ * Plugin URI:  https://mayoub.dev
  * Description: Adds a country flag and dial-code dropdown to Bricks Builder phone fields.
  * Version:     1.0.0
- * Author:      Your Name
+ * Author:      M. Ayoub
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: bricks-dialcode
